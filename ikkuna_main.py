@@ -167,6 +167,85 @@ def get_warnings_PLACEHOLDER():
     return CAP["feed"]
 
 
+class Panorama:
+    def __init__(self, parent, image):
+        self.__parent = parent
+        self.__canvas = parent.bg_canvas
+        self.__running = True
+        print(f"Panorame Class {self} INIT")
+        image.thumbnail((image.size[0], HEIGHT_DISPLAY))
+        self.__origPhoto = image
+        print(self.__origPhoto.size)
+
+        if image.size[0] > 1920:
+            print("WIDE IMAGE, panning...")
+            self.pan()
+        else:
+            print("showing static image")
+            photoimage = ImageTk.PhotoImage(image)
+            self.__canvas.itemconfigure(self.__parent.bg_canvas_picture,
+                                        image=photoimage)
+            self.__canvas.image = photoimage
+
+    def __del__(self):
+        print(f"Panorama {self} deleted")
+
+    def pan(self, left_border=0):
+        if not self.__running:
+            return
+        # print(f"panning, x={left_border}")
+        length = self.__origPhoto.size[1]
+        width = self.__origPhoto.size[0]
+        x = self.__origPhoto
+        if left_border >= width:
+            left_border = 0
+            print("täysi kierros")
+        # self.debugwrite(left_border)
+
+        right_border = WIDTH_DISPLAY + left_border
+
+        if right_border >= width:
+            print("next photo needed")
+            # print(f"leftB={left_border}rightB={right_border}")
+            self.__origPhoto.crop()
+            next_photo = self.__origPhoto.crop((0, 0,
+                                                (right_border - width),
+                                                length))
+            # print(f"Next photo right border {right_border - width}")
+            old_photo = self.__origPhoto.crop((left_border, 0,
+                                               width, length))
+            # print(f"Old photo left border={left_border}, right border {
+            # width}") print(f"old photo width={old_photo.size[0]}")
+            current_frame = Image.new('RGB', (WIDTH_DISPLAY, HEIGHT_DISPLAY))
+            current_frame.paste(old_photo, (0, 0))
+            current_frame.paste(next_photo, (old_photo.width, 0))
+            photoimage = ImageTk.PhotoImage(current_frame)
+
+            self.__canvas.itemconfigure(self.__parent.bg_canvas_picture,
+                                        image=photoimage)
+            self.__canvas.image = photoimage
+            new_left_border = left_border + MOVEMENT_SPEED
+            # print(f"new left border= {new_left_border}")
+            self.__parent.after(16, self.pan, new_left_border)
+            return
+
+        current_frame = self.__origPhoto.crop((left_border, 0,
+                                               right_border, length))
+        # print(f"current frame section ({left_border},{right_border})")
+        photoimage = ImageTk.PhotoImage(current_frame)
+        # self.bg_canvas_picture.configure(image=photoimage)
+        # self.bg_canvas_picture.image = photoimage
+        self.__canvas.itemconfigure(self.__parent.bg_canvas_picture,
+                                    image=photoimage)
+        self.__canvas.image = photoimage
+        new_left_border = left_border + MOVEMENT_SPEED
+
+        self.__parent.mainwindow.after(16, self.pan, new_left_border)
+
+    def disable(self):
+        self.__running = False
+
+
 class GUI:
     def __init__(self):
         self.mainwindow = Tk()
@@ -174,7 +253,7 @@ class GUI:
 
         self.bg_canvas = Canvas(self.mainwindow, highlightthickness=0)
         self.bg_canvas.place(x=0, y=0, relwidth=1, relheight=1)
-        self.__bg_canvas_picture = \
+        self.bg_canvas_picture = \
             self.bg_canvas.create_image(WIDTH_DISPLAY / 2,
                                         HEIGHT_DISPLAY / 2,
                                         anchor='center')
@@ -184,7 +263,7 @@ class GUI:
         self.__debugField.pack()
 
         self.__clockRunning = True
-        self.__origPhoto = Image.Image
+        self.__current_panorama = None
 
         self.__location = LocationInfo('Tampere', 'Finland', 'Europe/Helsinki',
                                        61.462528, 23.901936)
@@ -452,74 +531,13 @@ class GUI:
 
     def drawimage(self, image):
         print("drawimage()")
-        image.thumbnail((image.size[0], HEIGHT_DISPLAY))
-        self.__origPhoto = image
+        if self.__current_panorama is not None:
+            print("DELETING PREVIOUS CLASS")
+            print(type(self.__current_panorama))
+            print(self.__current_panorama)
+            self.__current_panorama.disable()
+        self.__current_panorama = Panorama(self, image)
 
-        # image.save("thumbail.jpeg", "JPEG")
-        print(image.size)
-        # photoimage1 = ImageTk.PhotoImage(image)
-        # self.__bg_canvas_picture.configure(image=photoimage1)
-        # self.__bg_canvas_picture.image = photoimage1
-
-        if image.size[0] > 1920:
-            print("WIDE IMAGE, panning...")
-            self.pan()
-        else:
-            print("showing static image")
-            photoimage = ImageTk.PhotoImage(image)
-            self.bg_canvas.itemconfigure(self.__bg_canvas_picture,
-                                         image=photoimage)
-            self.bg_canvas.image = photoimage
-
-    def pan(self, left_border=0):
-
-        print(f"panning, x={left_border}")
-        length = self.__origPhoto.size[1]
-        width = self.__origPhoto.size[0]
-        x = self.__origPhoto
-        if left_border >= width:
-            left_border = 0
-            print("täysi kierros")
-        # self.debugwrite(left_border)
-
-        right_border = WIDTH_DISPLAY + left_border
-
-        if right_border >= width:
-            print("next photo needed")
-            # print(f"leftB={left_border}rightB={right_border}")
-            self.__origPhoto.crop()
-            next_photo = self.__origPhoto.crop((0, 0,
-                                                (right_border - width),
-                                                length))
-            # print(f"Next photo right border {right_border - width}")
-            old_photo = self.__origPhoto.crop((left_border, 0,
-                                               width, length))
-            # print(f"Old photo left border={left_border}, right border {
-            # width}") print(f"old photo width={old_photo.size[0]}")
-            current_frame = Image.new('RGB', (WIDTH_DISPLAY, HEIGHT_DISPLAY))
-            current_frame.paste(old_photo, (0, 0))
-            current_frame.paste(next_photo, (old_photo.width, 0))
-            photoimage = ImageTk.PhotoImage(current_frame)
-            self.bg_canvas.itemconfigure(self.__bg_canvas_picture,
-                                         image=photoimage)
-            self.bg_canvas.image = photoimage
-            new_left_border = left_border + MOVEMENT_SPEED
-            print(f"new left border= {new_left_border}")
-            self.mainwindow.after(16, self.pan, new_left_border)
-            return
-
-        current_frame = self.__origPhoto.crop((left_border, 0,
-                                               right_border, length))
-        # print(f"current frame section ({left_border},{right_border})")
-        photoimage = ImageTk.PhotoImage(current_frame)
-        # self.__bg_canvas_picture.configure(image=photoimage)
-        # self.__bg_canvas_picture.image = photoimage
-        self.bg_canvas.itemconfigure(self.__bg_canvas_picture,
-                                     image=photoimage)
-        self.bg_canvas.image = photoimage
-        new_left_border = left_border + MOVEMENT_SPEED
-
-        self.mainwindow.after(16, self.pan, new_left_border)
 
     def CAP(self, etag=False):
         print("CAP!!!")
