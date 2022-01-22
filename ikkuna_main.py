@@ -20,9 +20,8 @@ Image.MAX_IMAGE_PIXELS = 150000000
 
 locationinfo = LocationInfo('Tampere', 'Finland', 'Europe/Helsinki',
                             61.462528, 23.901936)
-MANUAL_DATETIME = dt.datetime(year=2022, month=1, day=16, hour=21,
+MANUAL_DATETIME = dt.datetime(year=2022, month=1, day=23, hour=21,
                               tzinfo=locationinfo.tzinfo)
-
 FONT_COLOR = "#d3cfca"
 FONT_BG_COLOR = "#181a1b"
 
@@ -77,10 +76,7 @@ class WeatherInfo:
 
 
 def is_day(location):
-    # tampere = LocationInfo('Tampere', 'Finland', 'Europe/Helsinki',
-    #  61.462528, 23.901936)
     s = sun(location.observer, date=dt.date.today(), tzinfo=location.tzinfo)
-
     current_time = dt.datetime.now(tz=location.tzinfo)
 
     if s["sunrise"] < current_time < s["sunset"]:
@@ -162,9 +158,9 @@ def process_alerts(CAP_feed):
 
 
 def get_warnings_PLACEHOLDER():
-    with open("CAP_DATA_1.json") as json_file:
+    with open("CAP_DATA_NONE_POLYGONS.json") as json_file:
         CAP = json.load(json_file)
-    return CAP["feed"]
+    return CAP
 
 
 class Panorama:
@@ -276,8 +272,8 @@ class GUI:
                                    font=("Arial", 25), command=self.exit)
         self.__exitbutton.pack(side=BOTTOM)
 
-        self.__warning_symbols_frame = Frame(self.bg_canvas, bg="red")
-        self.__warning_symbols_frame.place(x=WIDTH_DISPLAY * (5 / 12),
+        self.__warning_symbols_frame = Frame(self.bg_canvas, bg="#f6d402")
+        self.__warning_symbols_frame.place(x=WIDTH_DISPLAY * (8 / 20),
                                            y=HEIGHT_DISPLAY * (8 / 10))
 
         self.mainwindow.bind('q', lambda event: self.exit())
@@ -285,6 +281,8 @@ class GUI:
 
         self.alerts = {}
         self.current_warning_symbols = []
+        self.__ticker_running = False
+        self.__ticker_text = ""
 
         # image1 = Image.open(
         #     r"C:\Users\Pyry Nieminen\Pictures\S7\20180517_050556.jpg")
@@ -296,7 +294,7 @@ class GUI:
         self.downloader()
         self.create_clock()
         self.init_weather()
-        # self.get_warnings()
+        self.get_warnings()
 
         self.mainwindow.mainloop()
 
@@ -313,8 +311,20 @@ class GUI:
 
     def get_warnings(self):
         cap_feed = get_warnings_PLACEHOLDER()
-        self.alerts = process_alerts(cap_feed)
-        self.draw_warnings()
+        if cap_feed:
+            # New update
+            self.alerts = process_alerts(cap_feed)
+            self.draw_warnings()
+        self.mainwindow.after(5 * 60 * 1000, self.get_warnings)
+
+    def download_cap(self):
+        pass
+        # TODO check if there is a cap file on file
+        # TODO find etag from file
+        # TODO Get header from FMI feed
+        # TODO Check headers etag against current etag. If != Get whole content
+        # TODO If etags match return False
+        # TODO if succesfull download, parse to dict, remove polygons and save to file and return dict
 
     def draw_an_alert(self, alert_id, priority):
         if priority == "info":
@@ -334,18 +344,32 @@ class GUI:
                                                        f'{event_code}.png'))
             wsymbol = Image.open(symbolpath)
             photoimagewsymbol = ImageTk.PhotoImage(wsymbol)
-            warning_label = Label(self.bg_canvas,
-                                  image=photoimagewsymbol)
+            warning_label = Label(self.__warning_symbols_frame,
+                                  image=photoimagewsymbol, bg="#f6d402")
+            warning_label.image = photoimagewsymbol
             # Create label with correct tag
-            warning_label.place(x=WIDTH_DISPLAY / 2, y=HEIGHT_DISPLAY / 2)
-
+            warning_label.pack(side=RIGHT)
+            self.current_warning_symbols.append(warning_label)
 
         elif priority == "orange":
-            # Draw an orange ticker on top of the screen
-
             print(
                 f"Drawing a {priority} priority alarm."f" onset= {self.alerts[alert_id]['onset']} expires= {self.alerts[alert_id]['expires']} color={self.alerts[id]['color']}")
             print(self.alerts[alert_id]['title'])
+
+            # Draw an orange ticker on top of the screen
+            if self.__ticker_running:
+                # allready ticker running, append text to ticker
+                new_text = f"{self.alerts[alert_id]['title']} –" \
+                           f" {self.alerts[alert_id]['title']}"
+                self.__ticker_text += f" —— {new_text}"
+            else:
+                self.__ticker_running = True
+                new_text = f"{self.alerts[alert_id]['title']} –" \
+                           f" {self.alerts[alert_id]['title']}"
+                self.__ticker_text += new_text
+
+
+
         elif priority == "red":
             # Draw a red ticker and sound an alarm
 
@@ -358,6 +382,11 @@ class GUI:
 
     def draw_warnings(self):
         self.remove_expired_alerts()
+
+        for alert_image in self.current_warning_symbols:
+            # delete current alert images
+            alert_image.destroy()
+
         current_time = dt.datetime.now(tz=self.__location.tzinfo)
         if MANUAL_DATETIME:
             current_time = MANUAL_DATETIME
@@ -372,11 +401,6 @@ class GUI:
                     and info["color"] == "orange":
                 # An orange warning for tomorrow
                 self.draw_an_alert(id, "info")
-
-        # TODO remove not current alarms
-        self.current_warning_symbols.clear()
-
-        self.mainwindow.after(1000 * 60, self.draw_weather)
 
     def init_weather(self):
         param = {"font": ("Dubai Medium", "50"),
@@ -440,6 +464,8 @@ class GUI:
         self.bg_canvas.tag_raise(weatherbar["numbers"], rect_item)
         self.bg_canvas.tag_raise(weatherbar["small numbers"], rect_item)
         self.bg_canvas.tag_raise(weatherbar["weathersymbol"], rect_item)
+        print(bbox)
+        self.__warning_symbols_frame.place(x=bbox[2], y=bbox[3], anchor=SW)
 
         print(f"{weatherdict['weathersymbol']}")
         if not is_day(self.__location):
@@ -537,7 +563,6 @@ class GUI:
             print(self.__current_panorama)
             self.__current_panorama.disable()
         self.__current_panorama = Panorama(self, image)
-
 
     def CAP(self, etag=False):
         print("CAP!!!")

@@ -13,6 +13,7 @@ def shif():
 
 
 shif.msg = ' Is this an alert, or what? '
+shif.msg += "Tässä vähän lisää."
 shif()
 labl.pack()
 root.mainloop()
