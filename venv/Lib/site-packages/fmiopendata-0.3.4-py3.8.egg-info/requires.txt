@@ -1,0 +1,11 @@
+numpy
+
+[all]
+rasterio
+eccodes
+
+[grid]
+eccodes
+
+[radar]
+rasterio
