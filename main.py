@@ -3,11 +3,11 @@ import cProfile
 
 
 def main():
-    pr = cProfile.Profile()
-    pr.enable()
+    # pr = cProfile.Profile()
+    # pr.enable()
     GUI.GUI()
-    pr.disable()
-    pr.print_stats(sort="cumulative")
+    # pr.disable()
+    # pr.print_stats(sort="cumulative")
 
 
 main()

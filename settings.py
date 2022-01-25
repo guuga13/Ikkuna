@@ -4,6 +4,7 @@ import datetime
 WIDTH_DISPLAY = 1920
 HEIGHT_DISPLAY = 1080
 MOVEMENT_SPEED = 1
+FRAMERATE = 60
 URL = "https://live-image.panomax.com/cams/4173/recent_full.jpg"
 CAP_FEED_URL = 'https://alerts.fmi.fi/cap/feed/atom_fi-FI.xml'
 LOCATION = "Kaukajärvi"
