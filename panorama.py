@@ -33,7 +33,6 @@ class Panorama:
         # print(f"panning, x={left_border}")
         length = self.__origPhoto.size[1]
         width = self.__origPhoto.size[0]
-        x = self.__origPhoto
         if left_border >= width:
             left_border = 0
             print("täysi kierros")
@@ -42,7 +41,6 @@ class Panorama:
         right_border = WIDTH_DISPLAY + left_border
 
         if right_border >= width:
-            print("next photo needed")
             # print(f"leftB={left_border}rightB={right_border}")
             self.__origPhoto.crop()
             next_photo = self.__origPhoto.crop((0, 0,
@@ -63,7 +61,7 @@ class Panorama:
             self.__canvas.image = photoimage
             new_left_border = left_border + MOVEMENT_SPEED
             # print(f"new left border= {new_left_border}")
-            self.__parent.after(16, self.pan, new_left_border)
+            self.__parent.mainwindow.after(16, self.pan, new_left_border)
             return
 
         current_frame = self.__origPhoto.crop((left_border, 0,
@@ -88,18 +86,18 @@ def downloader(root, num_of_tries=0):
     download_success = get_image(root)
     if download_success:
         print("download succesfull")
-        root.mainwindow.after(600000, downloader)
+        root.mainwindow.after(600000, downloader, root)
         return
 
     print("download error, retrying")
     num_of_tries += 1
     if num_of_tries < 4:
         print("rapid retry")
-        root.mainwindow.after(2000, downloader, num_of_tries)
+        root.mainwindow.after(2000, downloader, root, num_of_tries)
     elif num_of_tries < 10:
         print("slow retry")
         # 1000 * 60 * 1
-        root.mainwindow.after(1000 * 60 * 1, downloader,
+        root.mainwindow.after(1000 * 60 * 1, downloader, root,
                               num_of_tries)
     else:
         print("download error")
