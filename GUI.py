@@ -334,17 +334,13 @@ class GUI:
         self.bg_canvas.weatherimage = photoimagewsymbol
 
     def create_clock(self):
-        clock = self.bg_canvas.create_text(WIDTH_DISPLAY * (5 / 6),
-                                           HEIGHT_DISPLAY * (9 / 10),
-                                           anchor='se',
-                                           font=(
-                                               "Dubai Medium", "50",),
-                                           fill=FONT_COLOR
-                                           )
-        bbox = self.bg_canvas.bbox(clock)
-        rect_item = self.bg_canvas.create_rectangle(bbox, outline=FONT_BG_COLOR
-                                                    , fill=FONT_BG_COLOR)
-        self.bg_canvas.tag_raise(clock, rect_item)
+
+        clock = Label(self.mainwindow, text="12:00",
+                      font=("Dubai Medium", "50")
+                      , bg=FONT_BG_COLOR, fg=FONT_COLOR, height=1, width=5)
+
+        clock.place(relx=5 / 6, rely=8 / 10, anchor='ne')
+
         self.update_clock(clock)
 
     def debugwrite(self, data):
@@ -362,11 +358,7 @@ class GUI:
     def update_clock(self, clock):
 
         now = time.strftime("%H:%M")
-        self.bg_canvas.itemconfigure(clock, text=now)
-        bbox = self.bg_canvas.bbox(clock)
-        rect_item = self.bg_canvas.create_rectangle(bbox,
-                                                    fill=FONT_BG_COLOR)
-        self.bg_canvas.tag_raise(clock, rect_item)
+        clock.configure(text=now)
         self.mainwindow.after(1000, self.update_clock, clock)
         return
 
