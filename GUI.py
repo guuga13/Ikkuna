@@ -56,7 +56,7 @@ class TickerManager(Frame):
         self.parent = parent
         Frame.__init__(self, parent)
         self.parent = parent
-        print(f"ELDERA parent is -> {self.parent}")
+
         self.__current_ticker = Ticker(self.parent, priority)
         self.__message = ""
         self.parent = parent
@@ -106,12 +106,11 @@ class TickerManager(Frame):
             self.parent.after(1 * 60 * 1000, self.check_for_expired, True)
 
     def show(self):
-        print(f"show")
 
         self.__current_ticker.activate(self.__message)
 
     def hide(self):
-        print(f"hide")
+
         self.__current_ticker.delete()
         self.__current_ticker = Ticker(self.parent, self.priority)
 
@@ -129,9 +128,9 @@ class GUI:
         self.bg_canvas = Canvas(self.mainwindow, highlightthickness=0)
         self.bg_canvas.place(x=0, y=0, relwidth=1, relheight=1)
         self.bg_canvas_picture = \
-            self.bg_canvas.create_image(WIDTH_DISPLAY / 2,
-                                        HEIGHT_DISPLAY / 2,
-                                        anchor='center')
+            self.bg_canvas.create_image(0,
+                                        0,
+                                        anchor='nw')
 
         self.__debugField = Label(self.mainwindow, width=10, height=2,
                                   text="debug")
@@ -205,7 +204,6 @@ class GUI:
             warning_label.pack(side=RIGHT)
             self.current_warning_symbols.append(warning_label)
 
-
         elif priority == "orange":
             print(f"Drawing a {priority} priority .onset= {alert.onset}"
                   f" expires= {alert.expires} color={alert.color}")
@@ -267,9 +265,7 @@ class GUI:
         }
 
         cwd = os.getcwd()
-        print(cwd)
         images = os.path.normpath(os.path.join(cwd, 'lib', '1.png'))
-        print(images)
         image1 = Image.open(images)
         image1 = image1.reduce(2)
         photoimagesunny = ImageTk.PhotoImage(image1)
@@ -308,24 +304,26 @@ class GUI:
         self.bg_canvas.tag_raise(weatherbar["numbers"], rect_item)
         self.bg_canvas.tag_raise(weatherbar["small numbers"], rect_item)
         self.bg_canvas.tag_raise(weatherbar["weathersymbol"], rect_item)
-        print(bbox)
+
         self.__warning_symbols_frame.place(x=bbox[2], y=bbox[3], anchor=SW)
 
-        print(f"{weatherdict['weathersymbol']}")
         if not is_day(locationinfo):
-            symbolpath = os.path.normpath(os.path.join(os.getcwd(), 'lib',
-                                                       f'{weatherdict["weathersymbol"]}N.png'))
+            imag_path = (os.path.join(os.getcwd(), 'lib',
+                                      f'{weatherdict["weathersymbol"]}N.png'))
+            symbolpath = os.path.normpath(imag_path)
             try:
                 wsymbol = Image.open(symbolpath)
             except FileNotFoundError:
-                symbolpath = os.path.normpath(os.path.join(os.getcwd(), 'lib',
-                                                           f'{weatherdict["weathersymbol"]}.png'))
+                imag_path = os.path.join(os.getcwd(), 'lib',
+                                         f'{weatherdict["weathersymbol"]}.png')
+                symbolpath = os.path.normpath(imag_path)
                 wsymbol = Image.open(symbolpath)
 
 
         else:
-            symbolpath = os.path.normpath(os.path.join(os.getcwd(), 'lib',
-                                                       f'{weatherdict["weathersymbol"]}.png'))
+            imag_path = os.path.join(os.getcwd(), 'lib',
+                                     f'{weatherdict["weathersymbol"]}.png')
+            symbolpath = os.path.normpath(imag_path)
             wsymbol = Image.open(symbolpath)
 
         wsymbol = wsymbol.reduce(2)
@@ -336,55 +334,31 @@ class GUI:
         self.bg_canvas.weatherimage = photoimagewsymbol
 
     def create_clock(self):
-        clock = self.bg_canvas.create_text(WIDTH_DISPLAY * (5 / 6),
-                                           HEIGHT_DISPLAY * (9 / 10),
-                                           anchor='se',
-                                           font=(
-                                               "Dubai Medium", "50",),
-                                           fill=FONT_COLOR
-                                           )
-        bbox = self.bg_canvas.bbox(clock)
-        rect_item = self.bg_canvas.create_rectangle(bbox, outline=FONT_BG_COLOR
-                                                    , fill=FONT_BG_COLOR)
-        self.bg_canvas.tag_raise(clock, rect_item)
+
+        clock = Label(self.mainwindow, text="12:00",
+                      font=("Dubai Medium", "50")
+                      , bg=FONT_BG_COLOR, fg=FONT_COLOR, height=1, width=5)
+
+        clock.place(relx=5 / 6, rely=8 / 10, anchor='ne')
+
         self.update_clock(clock)
 
     def debugwrite(self, data):
         self.__debugField.configure(text=data)
 
     def drawimage(self, image):
-        print("drawimage()")
+        # print("drawimage()")
         if self.__current_panorama is not None:
-            print("DELETING PREVIOUS CLASS")
-            print(type(self.__current_panorama))
-            print(self.__current_panorama)
+            # print("DELETING PREVIOUS CLASS")
+            # print(type(self.__current_panorama))
+            # print(self.__current_panorama)
             self.__current_panorama.disable()
         self.__current_panorama = panorama.Panorama(self, image)
-
-    def CAP(self, etag=False):
-        print("CAP!!!")
-        print(f"current etag={etag}")
-
-        r = requests.head('https://alerts.fmi.fi/cap/feed/atom_fi-FI.xml')
-        new_etag = r.headers['Etag']
-        print(f"new etag={etag}")
-        print(f"{etag}=={new_etag}")
-        if etag == new_etag:
-            print("sama etag -- Ei haeta uudestaan")
-        else:
-            print("eri etag. Haetaan uudestaan")
-            # TODO tallenna etag
-
-        self.mainwindow.after(1000 * 20, self.CAP, etag)
 
     def update_clock(self, clock):
 
         now = time.strftime("%H:%M")
-        self.bg_canvas.itemconfigure(clock, text=now)
-        bbox = self.bg_canvas.bbox(clock)
-        rect_item = self.bg_canvas.create_rectangle(bbox,
-                                                    fill=FONT_BG_COLOR)
-        self.bg_canvas.tag_raise(clock, rect_item)
+        clock.configure(text=now)
         self.mainwindow.after(1000, self.update_clock, clock)
         return
 

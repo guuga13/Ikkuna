@@ -1,6 +1,7 @@
 from PIL import Image, ImageTk
 import requests
-from settings import HEIGHT_DISPLAY, WIDTH_DISPLAY, MOVEMENT_SPEED, URL
+from settings import HEIGHT_DISPLAY, WIDTH_DISPLAY, MOVEMENT_SPEED, URL, \
+    FRAMERATE
 from io import BytesIO
 
 
@@ -9,73 +10,64 @@ class Panorama:
         self.__parent = parent
         self.__canvas = parent.bg_canvas
         self.__running = True
-        print(f"Panorame Class {self} INIT")
-        image.thumbnail((image.size[0], HEIGHT_DISPLAY))
+        self.__image_obj = self.__parent.bg_canvas_picture
+        self.__frametime = round(1000 / FRAMERATE)
+        # print(f"Panorame Class {self} INIT")
+        image.thumbnail((image.width, HEIGHT_DISPLAY))
         self.__origPhoto = image
-        print(self.__origPhoto.size)
 
         if image.size[0] > 1920:
             print("WIDE IMAGE, panning...")
-            self.pan()
+            self.__currPhoto = self.expand(self.__origPhoto)
+            # print(self.__origPhoto.size)
+            photoimage = ImageTk.PhotoImage(self.__currPhoto)
+            self.__canvas.itemconfigure(self.__image_obj,
+                                        image=photoimage)
+            self.__canvas.image = photoimage
+            self.move()
         else:
             print("showing static image")
-            photoimage = ImageTk.PhotoImage(image)
-            self.__canvas.itemconfigure(self.__parent.bg_canvas_picture,
+            photoimage = ImageTk.PhotoImage(self.__origPhoto)
+            self.__canvas.itemconfigure(self.__image_obj,
                                         image=photoimage)
             self.__canvas.image = photoimage
 
     def __del__(self):
         print(f"Panorama {self} deleted")
 
-    def pan(self, left_border=0):
+    @staticmethod
+    def expand(image):
+        addition = image.crop((image.width - WIDTH_DISPLAY, 0,
+                               image.width, HEIGHT_DISPLAY))
+        # print(f"Old photo left border={image.width - WIDTH_DISPLAY},"
+        # f" right bordr{image.width}")
+
+        new_image = Image.new('RGB', (image.width + addition.width,
+                                      HEIGHT_DISPLAY))
+        new_image.paste(addition, (0, 0))
+        new_image.paste(image, (addition.width, 0))
+        # print(
+        # f"NEW PHOTO {new_image.size[0]}x{new_image.size[1]} !!!")
+
+        return new_image
+
+    def move(self, x=0):
         if not self.__running:
             return
-        # print(f"panning, x={left_border}")
-        length = self.__origPhoto.size[1]
-        width = self.__origPhoto.size[0]
-        if left_border >= width:
-            left_border = 0
-            print("täysi kierros")
-        # self.debugwrite(left_border)
+        left = x
+        right = x + WIDTH_DISPLAY
+        # print(f"move() {left}-{right}")
+        # print(f"imagesize {self.__currPhoto.size}")
+        width = self.__currPhoto.width
 
-        right_border = WIDTH_DISPLAY + left_border
-
-        if right_border >= width:
-            # print(f"leftB={left_border}rightB={right_border}")
-            self.__origPhoto.crop()
-            next_photo = self.__origPhoto.crop((0, 0,
-                                                (right_border - width),
-                                                length))
-            # print(f"Next photo right border {right_border - width}")
-            old_photo = self.__origPhoto.crop((left_border, 0,
-                                               width, length))
-            # print(f"Old photo left border={left_border}, right border {
-            # width}") print(f"old photo width={old_photo.size[0]}")
-            current_frame = Image.new('RGB', (WIDTH_DISPLAY, HEIGHT_DISPLAY))
-            current_frame.paste(old_photo, (0, 0))
-            current_frame.paste(next_photo, (old_photo.width, 0))
-            photoimage = ImageTk.PhotoImage(current_frame)
-
-            self.__canvas.itemconfigure(self.__parent.bg_canvas_picture,
-                                        image=photoimage)
-            self.__canvas.image = photoimage
-            new_left_border = left_border + MOVEMENT_SPEED
-            # print(f"new left border= {new_left_border}")
-            self.__parent.mainwindow.after(16, self.pan, new_left_border)
+        if right >= width:
+            #
+            self.__canvas.move(self.__image_obj, width - WIDTH_DISPLAY, 0)
+            self.__parent.mainwindow.after(self.__frametime, self.move)
             return
-
-        current_frame = self.__origPhoto.crop((left_border, 0,
-                                               right_border, length))
-        # print(f"current frame section ({left_border},{right_border})")
-        photoimage = ImageTk.PhotoImage(current_frame)
-        # self.bg_canvas_picture.configure(image=photoimage)
-        # self.bg_canvas_picture.image = photoimage
-        self.__canvas.itemconfigure(self.__parent.bg_canvas_picture,
-                                    image=photoimage)
-        self.__canvas.image = photoimage
-        new_left_border = left_border + MOVEMENT_SPEED
-
-        self.__parent.mainwindow.after(16, self.pan, new_left_border)
+        self.__canvas.move(self.__image_obj, -MOVEMENT_SPEED, 0)
+        new_left = MOVEMENT_SPEED + left
+        self.__parent.mainwindow.after(self.__frametime, self.move, new_left)
 
     def disable(self):
         self.__running = False
@@ -86,7 +78,7 @@ def downloader(root, num_of_tries=0):
     download_success = get_image(root)
     if download_success:
         print("download succesfull")
-        root.mainwindow.after(600000, downloader, root)
+        root.mainwindow.after(10 * 60 * 1000, downloader, root)
         return
 
     print("download error, retrying")
@@ -117,7 +109,6 @@ def get_image(root):
     if responce.status_code == 200 and responce.headers['Content-Type'] \
             == "image/jpeg":
         image = Image.open(BytesIO(responce.content))
-        print(f"IMAGE TYPE IS -> {type(image)}")
 
         # file = open("sample_image.jpeg", "wb")
         # file.write(responce.content)
